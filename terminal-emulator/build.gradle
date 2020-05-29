@@ -18,6 +18,7 @@ ext {
 
 android {
     compileSdkVersion 28
+    ndkVersion '21.1.6352462'
 
     defaultConfig {
         minSdkVersion 21
@@ -60,7 +61,7 @@ tasks.withType(Test) {
 }
 
 dependencies {
-    testImplementation 'junit:junit:4.12'
+    testImplementation 'junit:junit:4.13'
 }
 
 apply from: '../scripts/bintray-publish.gradle'

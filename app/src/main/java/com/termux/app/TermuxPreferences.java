@@ -58,6 +58,7 @@ final class TermuxPreferences {
     private static final String CURRENT_SESSION_KEY = "current_session";
     private static final String SCREEN_ALWAYS_ON_KEY = "screen_always_on";
 
+    private String mUseDarkUI;
     private boolean mScreenAlwaysOn;
     private int mFontSize;
 
@@ -65,6 +66,7 @@ final class TermuxPreferences {
     int mBellBehaviour = BELL_VIBRATE;
 
     boolean mBackIsEscape;
+    boolean mDisableVolumeVirtualKeys;
     boolean mShowExtraKeys;
 
     String[][] mExtraKeys;
@@ -126,6 +128,10 @@ final class TermuxPreferences {
         return mScreenAlwaysOn;
     }
 
+    boolean isUsingBlackUI() {
+        return mUseDarkUI.toLowerCase().equals("true");
+    }
+
     void setScreenAlwaysOn(Context context, boolean newValue) {
         mScreenAlwaysOn = newValue;
         PreferenceManager.getDefaultSharedPreferences(context).edit().putBoolean(SCREEN_ALWAYS_ON_KEY, newValue).apply();
@@ -173,6 +179,8 @@ final class TermuxPreferences {
                 break;
         }
 
+        mUseDarkUI = props.getProperty("use-black-ui", "false");
+
         try {
             JSONArray arr = new JSONArray(props.getProperty("extra-keys", "[['ESC', 'TAB', 'CTRL', 'ALT', '-', 'DOWN', 'UP']]"));
 
@@ -191,6 +199,7 @@ final class TermuxPreferences {
         }
 
         mBackIsEscape = "escape".equals(props.getProperty("back-key", "back"));
+        mDisableVolumeVirtualKeys = "volume".equals(props.getProperty("volume-keys", "virtual"));
 
         shortcuts.clear();
         parseAction("shortcut.create-session", SHORTCUT_ACTION_CREATE_SESSION, props);

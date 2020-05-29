@@ -127,6 +127,8 @@ public final class TermuxActivity extends Activity implements ServiceConnection 
      */
     boolean mIsVisible;
 
+    boolean mIsUsingBlackUI;
+
     final SoundPool mBellSoundPool = new SoundPool.Builder().setMaxStreams(1).setAudioAttributes(
         new AudioAttributes.Builder().setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION).build()).build();
@@ -186,28 +188,35 @@ public final class TermuxActivity extends Activity implements ServiceConnection 
     }
 
     /** For processes to access shared internal storage (/sdcard) we need this permission. */
-    @TargetApi(Build.VERSION_CODES.M)
     public boolean ensureStoragePermissionGranted() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                return true;
-            } else {
-                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUESTCODE_PERMISSION_STORAGE);
-                return false;
-            }
-        } else {
-            // Always granted before Android 6.0.
+        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
             return true;
+        } else {
+            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUESTCODE_PERMISSION_STORAGE);
+            return false;
         }
     }
 
     @Override
     public void onCreate(Bundle bundle) {
+        mSettings = new TermuxPreferences(this);
+        mIsUsingBlackUI = mSettings.isUsingBlackUI();
+        if (mIsUsingBlackUI) {
+            this.setTheme(R.style.Theme_Termux_Black);
+        } else {
+            this.setTheme(R.style.Theme_Termux);
+        }
+
         super.onCreate(bundle);
 
-        mSettings = new TermuxPreferences(this);
-
         setContentView(R.layout.drawer_layout);
+
+        if (mIsUsingBlackUI) {
+            findViewById(R.id.left_drawer).setBackgroundColor(
+                getResources().getColor(android.R.color.background_dark)
+            );
+        }
+
         mTerminalView = findViewById(R.id.terminal_view);
         mTerminalView.setOnKeyListener(new TermuxViewClient(this));
 
@@ -434,7 +443,11 @@ public final class TermuxActivity extends Activity implements ServiceConnection 
                 boolean sessionRunning = sessionAtRow.isRunning();
 
                 TextView firstLineView = row.findViewById(R.id.row_line);
-
+                if (mIsUsingBlackUI) {
+                    firstLineView.setBackground(
+                        getResources().getDrawable(R.drawable.selected_session_background_black)
+                    );
+                }
                 String name = sessionAtRow.mSessionName;
                 String sessionTitle = sessionAtRow.getTitle();
 
@@ -454,7 +467,8 @@ public final class TermuxActivity extends Activity implements ServiceConnection 
                 } else {
                     firstLineView.setPaintFlags(firstLineView.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
                 }
-                int color = sessionRunning || sessionAtRow.getExitStatus() == 0 ? Color.BLACK : Color.RED;
+                int defaultColor = mIsUsingBlackUI ? Color.WHITE : Color.BLACK;
+                int color = sessionRunning || sessionAtRow.getExitStatus() == 0 ? defaultColor : Color.RED;
                 firstLineView.setTextColor(color);
                 return row;
             }
@@ -589,7 +603,9 @@ public final class TermuxActivity extends Activity implements ServiceConnection 
             new AlertDialog.Builder(this).setTitle(R.string.max_terminals_reached_title).setMessage(R.string.max_terminals_reached_message)
                 .setPositiveButton(android.R.string.ok, null).show();
         } else {
-            TerminalSession newSession = mTermService.createTermSession(null, null, null, failSafe);
+            TerminalSession currentSession = getCurrentTermSession();
+            String workingDirectory = (currentSession == null) ? null : currentSession.getCwd();
+            TerminalSession newSession = mTermService.createTermSession(null, null, workingDirectory, failSafe);
             if (sessionName != null) {
                 newSession.mSessionName = sessionName;
             }
@@ -716,6 +732,9 @@ public final class TermuxActivity extends Activity implements ServiceConnection 
 
         // Resource path with optional query string.
         regex_sb.append("(?:/[a-zA-Z0-9:@%\\-._~!$&()*+,;=?/]*)?");
+
+        // Fragment.
+        regex_sb.append("(?:#[a-zA-Z0-9:@%\\-._~!$&()*+,;=?/]*)?");
 
         // End second matching group.
         regex_sb.append(")");
